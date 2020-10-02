@@ -32,15 +32,6 @@ public class Interface {
 	public String getIP() {
 		return IP;
 	}
-	// setters
-	public void setMAC(String mAC) {
-		MAC = mAC;
-	}
-	public void setIP(String iP) {
-		IP = iP;
-	}
-	public void setinterfaz(String IFZ) {
-		interfaz=IFZ;
-	}
+
 	
 }

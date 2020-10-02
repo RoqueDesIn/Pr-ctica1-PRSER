@@ -4,7 +4,9 @@ import java.io.InputStreamReader;
 import java.util.Scanner;
 
 public class practica1PRSER {
+	//****************
 	// estados
+	//****************
 	// texto par el menú
 	private static final String menu = "*******************************\n"+
 									   "             MENÚ\n"+
@@ -17,17 +19,29 @@ public class practica1PRSER {
 			"6. Comprobar conectividad con internet\r\n" + 
 			"7. Salir";
 	//lista de interfaces
-	static 	ListaInterfaces miListaInterfaces=new ListaInterfaces();
+	private static 	ListaInterfaces miListaInterfaces=new ListaInterfaces();
 	// proceso 
 	private static ProcessBuilder processBuilder = new ProcessBuilder();
 	// Scanner
 	private static	Scanner sc= new Scanner (System.in);
-	
+	private static boolean SO=true;
+	//******************
 	// métodos
+	//******************
+	/**
+	 * método principal de la aplicación
+	 * ejecuta el menú en un bucle infinito
+	 * @param args
+	 */
 	public static void main(String[] args) {
-		// comprueba SO
-		String SO="Su sistema operativo es "+System.getProperty("os.name")+"\n";
-		System.out.println(SO);
+		// comprueba SO: true es Windows, False es otro.
+		System.out.println("Su sistema operativo es "+System.getProperty("os.name")+"\n");
+		if (System.getProperty("os.name").contains("Windows")) {
+			SO=true;
+		} else {
+			SO=false;
+		}
+		
 		// bucle infinito
 		while (true) {
 			// esribe el menú
@@ -47,9 +61,12 @@ public class practica1PRSER {
 				EsperaTecla();
 				break;
 			case "3":
-				// ejecuta IPConfig
+				// ejecuta IPConfig/Ifconfig
 				listaIFC();
-				procesaIp(ejecutaProcess());
+				// Carga la lista de interfaces
+				creaLista(ejecutaProcess());
+				// muestra por pantalla las interfaces de la lista
+				procesaIp();
 				// espera una tecla
 				EsperaTecla();
 				break;
@@ -103,10 +120,14 @@ public class practica1PRSER {
 	private static void checkPing(String datos) {
 		String []lineas=datos.split("\n");
 		boolean resultado=true;
-		
-		//recorre las lineas del resultadp
+
+		// guarda en StrinCheck el texto a comparar según el SO
+		 String StringCheck=SO ? "100% perdidos":"texto para Linux";
+		 String StringCheck2=SO ? "no pudo encontrar el host":"texto para Linux";
+		 
+		//recorre las lineas del resultado
 		for (int i=0;i<lineas.length;i++) {
-			if (lineas[i].contains("100% perdidos") || lineas[i].contains("no pudo encontrar el host")) {
+			if (lineas[i].contains(StringCheck) || lineas[i].contains(StringCheck2)) {
 				resultado=false;
 			}
 		}
@@ -124,12 +145,21 @@ public class practica1PRSER {
 	private static String checkConectividad() {
 		System.out.println("Introduzca la IP ó URL a comprobar:"+"\r\n");
 		String URLCheck= sc.nextLine();
-		
-		//llama al proceso 
-		processBuilder.command("cmd.exe", "/c", "ping " + URLCheck);
+		//llama al proceso para Windows
+		if (SO) {
+			processBuilder.command("cmd.exe", "/c", "ping " + URLCheck);		
+		} else {
+		// llama al proceso para Linux
+			processBuilder.command("bash", "-c", "ping "+URLCheck);
+		}
+
 		String resultado=ejecutaProcess();
 		return resultado;
 	}
+	
+	/**
+	 * Muestra la MAC desde la clase ListaInterfaces
+	 */
 	private static void mostrarMAC() {
 		System.out.println("*************************\n Escribe un número de Interfaz para consultar su MAC:\n");
 		
@@ -170,14 +200,19 @@ public class practica1PRSER {
 	 */
 	private static void listaIFC() {
 		System.out.println("**************************\nLeyendo Interfaces"+"\n**************************\\n");
-		//llama al proceso 
-		processBuilder.command("cmd.exe", "/c", "ipconfig /all");
+
+		//llama al proceso para Windows
+		if (SO) {
+			processBuilder.command("cmd.exe", "/c", "ipconfig /all");		} else {
+		// llama al proceso para Linux
+			processBuilder.command("bash", "-c", "ifconfig ");
+		}
 	}
 	
 	/**
 	 * Crea las interfaces y las añade a la lista de interfaces para 
 	 * posteriores consultas con los datos proporcionados.
-	 * @param Strinf con los datos a procesar
+	 * @param String con los datos a procesar
 	 */
 	private static void creaLista(String datos) {
 		String lineas[]=datos.split("\n");
@@ -189,21 +224,27 @@ public class practica1PRSER {
 		String IP="No hay IP";
 		String MAC="No hay MAC";
 		boolean encontrado=false;
-		
+		// procesa los Strings a buscar según el SO
+		 String SCInterfaz=SO ? "Descripci¢n":"flags";
+		 String SCMAC=SO ? "Direcci¢n f¡sica":"ether";
+		 String SCIP=SO ? "IPv4":"inet ";
+		 // según SO elige separador
+		 String separador=SO ? ":":" ";
+		 
 		// Recorre las lineas devueltas por el comando
 		for (int i=0;i<lineas.length;i++) {
-			String campos[]=lineas[i].split(":");
+			String campos[]=lineas[i].split(separador);
 			// es la linea de interface
-			if (lineas[i].contains("Descripci¢n")){
-				interfaz=campos[1];
+			if (lineas[i].contains(SCInterfaz)){
+				interfaz=SO?campos[1]:campos[0].substring(0, campos[0].length()-1);
 				encontrado=true;
 			}
-			if (lineas[i].contains("Direcci¢n f¡sica")){
-				//es la linea de la MAC
+			if (lineas[i].contains(SCMAC)){
+				//es la linea de la MAC, siempre coge el campo 2
 				MAC=campos[1];
 			}
-			if (lineas[i].contains("IPv4")){
-				// Es la linea de la IPv4
+			if (lineas[i].contains(SCIP)){
+				// Es la linea de la IPv4, siempre coge el campo 2
 				IP=campos[1];
 			}
 			// si ha encontrado una Interfaz guarda el objeto interfaz en la lista
@@ -216,29 +257,16 @@ public class practica1PRSER {
 	
 	/**
 	 * procesa los datos y escribe el resultado de buscar Interface, MAC y IP
-	 * @param datos String con los datos a procesar
 	 */
-	private static void procesaIp(String datos) {
+	private static void procesaIp() {
 		String resultado="***************************\n Listado de Interfaces\n";
-		String lineas[]=datos.split("\n");
-		
-		// Recorre las lineas devueltas por el comando
-		for (int i=0;i<lineas.length;i++) {
-			String campos[]=lineas[i].split(":");
-			// es la linea de interface
-			if (lineas[i].contains("Descripci¢n")){
+		 
+		// Recorre las lineas de la lista y crea el String
+		for (int i=0;i<miListaInterfaces.getListaInterfaces().size();i++) {
 				resultado=resultado+"***************************\n";
-				resultado=resultado+"Interface: "+campos[1]+"\n";
-			}
-			if (lineas[i].contains("Direcci¢n f¡sica")){
-				//es la linea de la MAC
-				resultado= resultado+"MAC: : "+campos[1]+"\n";
-			}
-			if (lineas[i].contains("IPv4")){
-				// Es la linea de la IPv4
-				resultado= resultado+"IP: "+campos[1]+"\n";
-			}
-
+				resultado=resultado+"Interface: "+miListaInterfaces.getListaInterfaces().get(i).getInterfaz()+"\n";
+				resultado=resultado+"MAC: "+miListaInterfaces.getListaInterfaces().get(i).getMAC()+"\n";
+				resultado=resultado+"IP: "+miListaInterfaces.getListaInterfaces().get(i).getIP()+"\n";
 		}
 		System.out.println(resultado);
 	}
@@ -250,8 +278,13 @@ public class practica1PRSER {
 		System.out.println("Introduzca la ruta completa del fichero a crear:"+"\r\n");
 		String ruta= sc.nextLine();
 		
-		//llama al proceso 
-		processBuilder.command("cmd.exe", "/c", "nul > " + ruta);
+		//llama al proceso para Windows
+		if (SO) {
+			processBuilder.command("cmd.exe", "/c", "nul > " + ruta);
+		} else {
+		// llama al proceso para Linux
+			processBuilder.command("bash", "-c", "touch " + ruta);
+		}
 		ejecutaProcess();
 	}
 
@@ -262,8 +295,13 @@ public class practica1PRSER {
 		System.out.println("Introduzca la ruta completa de la carpeta a crear:"+"\r\n");
 		String ruta= sc.nextLine();
 		
-		//llama al proceso 
-		processBuilder.command("cmd.exe", "/c", "mkdir " + ruta);
+		//llama al proceso para Windows 
+		if (SO) {
+			processBuilder.command("cmd.exe", "/c", "mkdir " + ruta);
+		} else {
+		//llama al proceso para Linux
+			processBuilder.command("bash", "-c", "mkdir " + ruta);	
+		}
 		ejecutaProcess();
 	}
 
