@@ -1,6 +1,7 @@
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.InterfaceAddress;
 import java.util.Scanner;
 
 public class practica1PRSER {
@@ -122,8 +123,8 @@ public class practica1PRSER {
 		boolean resultado=true;
 
 		// guarda en StrinCheck el texto a comparar según el SO
-		 String StringCheck=SO ? "100% perdidos":"texto para Linux";
-		 String StringCheck2=SO ? "no pudo encontrar el host":"texto para Linux";
+		 String StringCheck=SO ? "100% perdidos":"100% packet loss";
+		 String StringCheck2=SO ? "no pudo encontrar el host":"Nombre o servicio desconocido";
 		 
 		//recorre las lineas del resultado
 		for (int i=0;i<lineas.length;i++) {
@@ -150,7 +151,7 @@ public class practica1PRSER {
 			processBuilder.command("cmd.exe", "/c", "ping " + URLCheck);		
 		} else {
 		// llama al proceso para Linux
-			processBuilder.command("bash", "-c", "ping "+URLCheck);
+			processBuilder.command("bash", "-c", "ping -c 1 "+URLCheck);
 		}
 
 		String resultado=ejecutaProcess();
@@ -199,7 +200,7 @@ public class practica1PRSER {
 	 * ejecuta ipconfig 
 	 */
 	private static void listaIFC() {
-		System.out.println("**************************\nLeyendo Interfaces"+"\n**************************\\n");
+		System.out.println("**************************\nLeyendo Interfaces"+"\n**************************\n");
 
 		//llama al proceso para Windows
 		if (SO) {
@@ -219,38 +220,46 @@ public class practica1PRSER {
 		
 		// inicializa variables
 		miListaInterfaces.clear();
-		Interface miInterface=new Interface();
 		String interfaz="No hay Interfaz";
 		String IP="No hay IP";
 		String MAC="No hay MAC";
-		boolean encontrado=false;
 		// procesa los Strings a buscar según el SO
 		 String SCInterfaz=SO ? "Descripci¢n":"flags";
 		 String SCMAC=SO ? "Direcci¢n f¡sica":"ether";
 		 String SCIP=SO ? "IPv4":"inet ";
+		 String nuevaInterfaz=SO ? "Adaptador":"TX errors";
 		 // según SO elige separador
 		 String separador=SO ? ":":" ";
-		 
+		 // contador de interfaces
+		 int nInterfaz=0;
+		 int interfazcActual=0;
+		 int aCompararSO=SO?1:0;		 
 		// Recorre las lineas devueltas por el comando
 		for (int i=0;i<lineas.length;i++) {
 			String campos[]=lineas[i].split(separador);
+			// comienzan los datos de un adaptador
+	
 			// es la linea de interface
 			if (lineas[i].contains(SCInterfaz)){
 				interfaz=SO?campos[1]:campos[0].substring(0, campos[0].length()-1);
-				encontrado=true;
 			}
 			if (lineas[i].contains(SCMAC)){
-				//es la linea de la MAC, siempre coge el campo 2
-				MAC=campos[1];
+				//es la linea de la MAC, en Window es el campo 2, en Linux el 9
+				MAC=SO?campos[1]:campos[9];
 			}
 			if (lineas[i].contains(SCIP)){
-				// Es la linea de la IPv4, siempre coge el campo 2
-				IP=campos[1];
+				// Es la linea de la IPv4, en Window es el campo 2, en Linux el 9
+				MAC=SO?campos[1]:campos[9];
 			}
-			// si ha encontrado una Interfaz guarda el objeto interfaz en la lista
-			if (encontrado){
+			// cuenta las interfaces
+			if (lineas[i].contains(nuevaInterfaz)) {
+				nInterfaz=nInterfaz+1;
+			}
+			// si ha encontrado una nueva Interfaz(Windows) ó ha terminado la anterior(Linux)
+			// guarda el objeto interfaz en la lista
+			if ((nInterfaz>interfazcActual) && (nInterfaz>aCompararSO)){
 				miListaInterfaces.addInterface(new Interface (interfaz+";"+MAC+";"+IP));
-				encontrado=false;
+				interfazcActual=nInterfaz;
 			}
 		}
 	}
